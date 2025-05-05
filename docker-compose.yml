@@ -1,0 +1,47 @@
+services:
+  zookeeper:
+    image: bitnami/zookeeper:3.8
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    ports:
+      - "2181:2181"
+    volumes:
+      - zk_data:/bitnami
+
+  kafka:
+    image: bitnami/kafka:3.4
+    depends_on:
+      - zookeeper
+    environment:
+      # Point at ZK
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      # Listeners
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      # Tweak defaults for production
+      - KAFKA_CFG_NUM_PARTITIONS=6
+      - KAFKA_CFG_DEFAULT_REPLICATION_FACTOR=1
+      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=2
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/bitnami
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=metadata
+      - POSTGRES_USER=meta_user
+      - POSTGRES_PASSWORD=meta_pass
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  db_data:
+  zk_data:
+  kafka_data:
