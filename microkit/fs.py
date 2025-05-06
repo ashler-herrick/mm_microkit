@@ -1,11 +1,18 @@
-import orjson
-
-import asyncio
 from functools import partial
 from typing import Any, Callable, Optional
+from enum import Enum
+
+import orjson
+import gzip
+import asyncio
 from fsspec import url_to_fs, AbstractFileSystem
 
 from microkit.config import settings
+
+
+class Compression(str, Enum):
+    NONE = "none"
+    GZIP = "gzip"
 
 
 class AsyncFS:
@@ -27,11 +34,16 @@ class AsyncFS:
         data = await async_fs.read('foo.bin', lambda b: b)
     """
 
-    def __init__(self, storage_url: Optional[str] = None):
+    def __init__(
+        self,
+        storage_url: Optional[str] = None,
+        compression: Compression = Compression.GZIP,
+    ):
         url = storage_url or settings.raw_storage_url
         fs, root = url_to_fs(url, anon=False)
         self._fs: AbstractFileSystem = fs
         self._root: str = root.rstrip("/")
+        self._compression = compression
 
     @property
     def base_path(self) -> str:
@@ -43,21 +55,48 @@ class AsyncFS:
 
     # Core generic API
     async def write(
-        self, path: str, obj: Any, serializer: Callable[[Any], bytes]
+        self,
+        path: str,
+        obj: Any,
+        serializer: Callable[[Any], bytes],
+        mkdirs: bool = False,
     ) -> None:
+        # get dest path
+        path = path if not _is_relative(path) else f"{self._root}/{path.lstrip('/')}"
+        # serialize
         data = serializer(obj)
         if not isinstance(data, (bytes, bytearray)):
             raise TypeError("serializer must return bytes")
-        full = f"{self._root}/{path.lstrip('/')}"
-        # ensure parent directory exists
-        parent = full.rsplit("/", 1)[0]
-        await self._run(self._fs.makedirs, parent, exist_ok=True)
-        # write data
-        await self._run(lambda p, d: self._fs.open(p, "wb").write(d), full, data)
 
-    async def read(self, path: str, deserializer: Callable[[bytes], Any]) -> Any:
-        src = path if not _is_relative(path) else f"{self._root}/{path.lstrip('/')}"
-        data = await self._run(lambda p: self._fs.open(p, "rb").read(), src)
+        # optionally compress
+        if self._compression == "gzip":
+            data = gzip.compress(data)
+            path = path.rstrip("/") + ".gz"
+
+        if mkdirs:
+            parent = path.rsplit("/", 1)[0]
+            await self._run(self._fs.makedirs, parent, exist_ok=True)
+
+        def _write(p, d):
+            with self._fs.open(p, "wb") as f:
+                f.write(d)
+
+        await self._run(_write, path, data)
+
+    async def read(
+        self,
+        path: str,
+        deserializer: Callable[[bytes], Any],
+        compression: str = "infer",
+    ) -> Any:
+        # get src path
+        path = path if not _is_relative(path) else f"{self._root}/{path.lstrip('/')}"
+
+        def _read(p):
+            with self._fs.open(p, "rb", compression=compression) as f:
+                return f.read()
+
+        data = await self._run(_read, path)
         return deserializer(data)
 
     # --- Copy across file systems ---

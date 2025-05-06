@@ -19,6 +19,7 @@ ENV.update(
     }
 )
 
+
 @pytest.fixture(scope="session", autouse=True)
 def docker_compose_up():
     """
