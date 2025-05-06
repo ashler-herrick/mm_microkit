@@ -9,14 +9,13 @@ from microkit.fs import AsyncFS
 
 TEST_MESSAGE = {"hey": "dude"}
 DATA_DIR = Path(__file__).parent / "test_data"
-local_afs = AsyncFS(DATA_DIR)
+TEST_AFS = AsyncFS(DATA_DIR, compression="gzip")
 
 
 @pytest.mark.asyncio
 async def test_async_write():
-    local_afs = AsyncFS(DATA_DIR)
-    await local_afs.write("test.json", TEST_MESSAGE, lambda f: orjson.dumps(f))
-    test_out = DATA_DIR / "test.json"
+    await TEST_AFS.write("test.json", TEST_MESSAGE, lambda f: orjson.dumps(f))
+    test_out = DATA_DIR / "test.json.gz"
     assert test_out.exists()
     assert test_out.is_file()
     assert test_out.stat().st_size > 0
@@ -26,10 +25,9 @@ async def test_async_write():
 
 @pytest.mark.asyncio
 async def test_async_read():
-    local_afs = AsyncFS(DATA_DIR)
-    await local_afs.write("test.json", TEST_MESSAGE, lambda f: orjson.dumps(f))
-    test = await local_afs.read("test.json", lambda f: orjson.loads(f))
-    test_bytes = await local_afs.read("test.json", lambda f: f)
+    await TEST_AFS.write("test.json", TEST_MESSAGE, lambda f: orjson.dumps(f))
+    test = await TEST_AFS.read("test.json.gz", lambda f: orjson.loads(f))
+    test_bytes = await TEST_AFS.read("test.json.gz", lambda f: f)
 
     assert isinstance(test, dict)
     assert test == TEST_MESSAGE
@@ -38,14 +36,13 @@ async def test_async_read():
 
 @pytest.mark.asyncio
 async def test_async_copy():
-    local_afs = AsyncFS(DATA_DIR)
-    await local_afs.write("test.json", TEST_MESSAGE, lambda f: orjson.dumps(f))
-    await local_afs.copy("test.json", "test_copy.json")
+    await TEST_AFS.write("test.json", TEST_MESSAGE, lambda f: orjson.dumps(f))
+    await TEST_AFS.copy("test.json.gz", "test_copy.json.gz")
 
-    copy = await local_afs.read("test_copy.json", lambda f: orjson.loads(f))
-    orig = await local_afs.read("test.json", lambda f: orjson.loads(f))
-    copy_path = DATA_DIR / "test_copy.json"
-    test_path = DATA_DIR / "test.json"
+    copy = await TEST_AFS.read("test_copy.json.gz", lambda f: orjson.loads(f))
+    orig = await TEST_AFS.read("test.json.gz", lambda f: orjson.loads(f))
+    copy_path = DATA_DIR / "test_copy.json.gz"
+    test_path = DATA_DIR / "test.json.gz"
     assert copy_path.exists()
     assert copy_path.is_file()
     assert isinstance(copy, dict)
@@ -60,8 +57,8 @@ async def test_async_copy():
 async def test_async_json():
     local_afs = AsyncFS(DATA_DIR)
     await local_afs.write_json("test.json", TEST_MESSAGE)
-    jason = await local_afs.read_json("test.json")
-    jason_path = DATA_DIR / "test.json"
+    jason = await local_afs.read_json("test.json.gz")
+    jason_path = DATA_DIR / "test.json.gz"
     assert jason == TEST_MESSAGE
     assert isinstance(jason, dict)
 
@@ -72,13 +69,13 @@ async def test_async_json():
 async def test_async_bytes():
     local_afs = AsyncFS(DATA_DIR)
     test_message_bytes = orjson.dumps(TEST_MESSAGE)
-    await local_afs.write_bytes("test_bytes", test_message_bytes)
-    bites = await local_afs.read_bytes("test_bytes")
+    await local_afs.write_bytes("test_bytes.gz", test_message_bytes)
+    bites = await local_afs.read_bytes("test_bytes.gz")
 
     assert bites == test_message_bytes
     assert isinstance(bites, bytes)
 
-    bytes_path = DATA_DIR / "test_bytes"
+    bytes_path = DATA_DIR / "test_bytes.gz"
     os.remove(bytes_path)
 
 
