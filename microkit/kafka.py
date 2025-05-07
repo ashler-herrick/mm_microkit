@@ -79,19 +79,6 @@ async def close_async_consumer(group: str) -> None:
         _async_consumer = None
 
 
-async def iterate_messages() -> AsyncIterator[bytes]:
-    """
-    Async generator over raw message bytes.
-    """
-    consumer = get_async_consumer()
-    try:
-        async for msg in consumer:
-            yield msg.value
-    finally:
-        # note: we do not auto-stop here; use close_async_consumer()
-        return
-
-
 # ————— Async Producer ——————————————————————————————————————
 
 _async_producer: Optional[AIOKafkaProducer] = None
