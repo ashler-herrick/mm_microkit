@@ -1,4 +1,4 @@
-from typing import Optional, AsyncIterator, Dict
+from typing import Optional, Dict
 import logging
 import asyncio
 
