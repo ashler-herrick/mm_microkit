@@ -20,6 +20,16 @@ async def get_pool() -> asyncpg.Pool:
             dsn=settings.postgres_dsn,
             min_size=settings.db_min_size,
             max_size=settings.db_max_size,
-            command_timeout=60,
         )
     return __pool
+
+
+async def close_pool() -> None:
+    """
+    Gracefully close the global asyncpg pool (if it exists).
+    Call this on application shutdown.
+    """
+    global __pool
+    if __pool is not None:
+        await __pool.close()
+        __pool = None
