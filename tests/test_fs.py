@@ -69,7 +69,7 @@ async def test_async_json():
 async def test_async_bytes():
     local_afs = AsyncFS(DATA_DIR)
     test_message_bytes = orjson.dumps(TEST_MESSAGE)
-    await local_afs.write_bytes("test_bytes.gz", test_message_bytes)
+    await local_afs.write_bytes("test_bytes", test_message_bytes)
     bites = await local_afs.read_bytes("test_bytes.gz")
 
     assert bites == test_message_bytes
