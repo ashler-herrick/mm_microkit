@@ -17,21 +17,28 @@ class Compression(str, Enum):
 
 class AsyncFS:
     """
-    Async wrapper around any fsspec-backed filesystem. Provides generic read/write
-    APIs where you supply serializers/deserializers, plus convenience sugar.
+    Asynchronous interface for interacting with fsspec-compatible file systems, 
+    supporting pluggable serialization, compression, and cross-filesystem operations.
 
-    Core API:
-        async def write(path: str, obj: Any, serializer: Callable[[Any], bytes])
-        async def read(path: str, deserializer: Callable[[bytes], Any]) -> Any
+    This class simplifies reading and writing files in async workflows with optional
+    GZIP compression and structured serialization formats like JSON.
 
-    Convenience:
-        write_bytes, read_bytes, write_text, read_text, write_json, read_json
+    Core Methods:
+        - write(): Serialize and write data to a file.
+        - read(): Read and deserialize data from a file.
+        - copy(): Copy files between paths and optionally across file systems.
 
-    Usage:
-        async_fs = AsyncFileSystem()
-        # Generic
-        await async_fs.write('foo.bin', b'data', lambda d: d)
-        data = await async_fs.read('foo.bin', lambda b: b)
+    Convenience Methods:
+        - write_json() / read_json(): Work with JSON dictionaries.
+        - write_bytes() / read_bytes(): Work with raw bytes.
+
+    Attributes:
+        base_path (str): The root path of the file system.
+
+    Example:
+        async_fs = AsyncFS("s3://my-bucket/data")
+        await async_fs.write_json("records.json", {"foo": "bar"})
+        data = await async_fs.read_json("records.json")
     """
 
     def __init__(
@@ -39,6 +46,17 @@ class AsyncFS:
         storage_url: Optional[str] = None,
         compression: Compression = Compression.GZIP,
     ):
+        """
+        Initialize an asynchronous file system wrapper using the given storage URL and compression.
+
+        Args:
+            storage_url (Optional[str]): URL to the base storage location (e.g., "s3://bucket/path").
+                If None, defaults to `settings.raw_storage_url`.
+            compression (Compression): Compression type to apply when writing files. Defaults to GZIP.
+
+        Raises:
+            ValueError: If the storage URL cannot be parsed by `fsspec.url_to_fs`.
+        """
         url = storage_url or settings.raw_storage_url
         fs, root = url_to_fs(url, anon=False)
         self._fs: AbstractFileSystem = fs
@@ -61,6 +79,18 @@ class AsyncFS:
         serializer: Callable[[Any], bytes],
         mkdirs: bool = False,
     ) -> None:
+        """
+        Write a serialized object to the given path, optionally compressing and creating directories.
+
+        Args:
+            path (str): Destination path to write to. Relative paths are resolved against the base path.
+            obj (Any): The object to serialize and write.
+            serializer (Callable[[Any], bytes]): Function that serializes the object into bytes.
+            mkdirs (bool, optional): Whether to create parent directories if they don't exist. Defaults to False.
+
+        Raises:
+            TypeError: If the serializer does not return bytes.
+        """
         # get dest path
         path = path if not _is_relative(path) else f"{self._root}/{path.lstrip('/')}"
         # serialize
@@ -89,6 +119,17 @@ class AsyncFS:
         deserializer: Callable[[bytes], Any],
         compression: str = "infer",
     ) -> Any:
+        """
+        Read and deserialize an object from the given path.
+
+        Args:
+            path (str): Path to the file to read. Relative paths are resolved against the base path.
+            deserializer (Callable[[bytes], Any]): Function that deserializes the bytes into an object.
+            compression (str, optional): Compression mode. Defaults to "infer".
+
+        Returns:
+            Any: The deserialized object.
+        """
         # get src path
         path = path if not _is_relative(path) else f"{self._root}/{path.lstrip('/')}"
 
@@ -102,8 +143,11 @@ class AsyncFS:
     # --- Copy across file systems ---
     async def copy(self, source_path: str, dest_path: str) -> None:
         """
-        Copy a single file from source_path to dest_path. Supports cross-FS.
-        If paths are relative, they use this filesystem's base. Otherwise, full URL.
+        Copy a file from source_path to dest_path. Supports cross-filesystem operations.
+
+        Args:
+            source_path (str): Source file path. Can be relative or full URL.
+            dest_path (str): Destination file path. Can be relative or full URL.
         """
         # resolve source filesystem and path
         if _is_relative(source_path):
@@ -132,15 +176,47 @@ class AsyncFS:
         # --- Convenience wrappers for reading and writing types ---
 
     async def write_json(self, path: str, obj: dict):
+        """
+        Serialize and write a dictionary to a file as JSON.
+
+        Args:
+            path (str): Destination file path.
+            obj (dict): Dictionary to serialize and write.
+        """
         await self.write(path, obj, lambda o: orjson.dumps(o))
 
     async def read_json(self, path: str) -> dict:
+        """
+        Read a JSON file and deserialize it into a dictionary.
+
+        Args:
+            path (str): Path to the JSON file.
+
+        Returns:
+            dict: The deserialized dictionary.
+        """
         return await self.read(path, lambda o: orjson.loads(o))
 
     async def write_bytes(self, path: str, obj: bytes):
+        """
+        Write raw bytes to a file.
+
+        Args:
+            path (str): Destination file path.
+            obj (bytes): Raw byte data to write.
+        """
         await self.write(path, obj, lambda o: o)
 
     async def read_bytes(self, path: str) -> bytes:
+        """
+        Read raw bytes from a file.
+
+        Args:
+            path (str): Path to the file.
+
+        Returns:
+            bytes: Raw byte content.
+        """
         return await self.read(path, lambda o: o)
 
 
