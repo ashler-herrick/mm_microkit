@@ -31,7 +31,7 @@ services:
       - kafka_data:/bitnami
 
   postgres:
-    image: postgres:15
+    image: pg-metadata:latest
     environment:
       - POSTGRES_DB=metadata
       - POSTGRES_USER=meta_user
