@@ -77,7 +77,7 @@ class AsyncFS:
         path: str,
         obj: Any,
         serializer: Callable[[Any], bytes],
-        mkdirs: bool = False,
+        mkdirs: bool = True,
     ) -> None:
         """
         Write a serialized object to the given path, optionally compressing and creating directories.
@@ -175,7 +175,7 @@ class AsyncFS:
 
         # --- Convenience wrappers for reading and writing types ---
 
-    async def write_json(self, path: str, obj: dict):
+    async def write_json(self, path: str, obj: dict, mkdirs: bool = True):
         """
         Serialize and write a dictionary to a file as JSON.
 
@@ -183,7 +183,7 @@ class AsyncFS:
             path (str): Destination file path.
             obj (dict): Dictionary to serialize and write.
         """
-        await self.write(path, obj, lambda o: orjson.dumps(o))
+        await self.write(path, obj, lambda o: orjson.dumps(o), mkdirs)
 
     async def read_json(self, path: str) -> dict:
         """
@@ -197,7 +197,7 @@ class AsyncFS:
         """
         return await self.read(path, lambda o: orjson.loads(o))
 
-    async def write_bytes(self, path: str, obj: bytes):
+    async def write_bytes(self, path: str, obj: bytes, mkdirs: bool = True):
         """
         Write raw bytes to a file.
 
@@ -205,7 +205,7 @@ class AsyncFS:
             path (str): Destination file path.
             obj (bytes): Raw byte data to write.
         """
-        await self.write(path, obj, lambda o: o)
+        await self.write(path, obj, lambda o: o, mkdirs)
 
     async def read_bytes(self, path: str) -> bytes:
         """

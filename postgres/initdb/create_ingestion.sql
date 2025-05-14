@@ -3,7 +3,7 @@ CREATE SCHEMA IF NOT EXISTS ingestion;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS ingestion.raw_api_ingest (
-    object_id     UUID PRIMARY KEY,                  -- supplied by API
+    object_id       UUID PRIMARY KEY,                -- supplied by API
     format          TEXT      NOT NULL,              -- e.g. 'fhir', 'hl7', 'note'
     content_type    TEXT,                            -- e.g. 'json', 'xml', 'text'
     subtype         TEXT      NOT NULL,              -- e.g. 'Patient', 'Observation', or generic type
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS ingestion.raw_api_ingest (
 
 CREATE TABLE IF NOT EXISTS ingestion.ingestion_log (
     log_id          BIGSERIAL PRIMARY KEY,
-    object_id     UUID REFERENCES ingestion.raw_api_ingest(object_id),
+    object_id       UUID,
     log_time        TIMESTAMPTZ DEFAULT now(),       -- event timestamp
     status          TEXT      NOT NULL,              -- e.g. 'duplicated', 'ingested', 'failed'
     message         TEXT                             -- error or info message

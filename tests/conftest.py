@@ -5,8 +5,6 @@ import time
 
 import pytest
 
-
-COMPOSE_FILE = Path(__file__).parent.parent / "docker-compose.yml"
 ENV = os.environ.copy()
 RAW_STORAGE = Path(__file__).parent / "test_data"
 ENV.update(
@@ -25,7 +23,7 @@ def docker_compose_up():
     """
     Bring up docker-compose stack for the entire test session.
     """
-    cmd = ["docker", "compose", "-f", str(COMPOSE_FILE), "up", "-d"]
+    cmd = ["docker", "compose", "up", "-d"]
     subprocess.run(cmd, check=True, env=ENV)
 
     # wait for Postgres
@@ -37,7 +35,7 @@ def docker_compose_up():
 
     # tear down
     subprocess.run(
-        ["docker", "compose", "-f", str(COMPOSE_FILE), "down", "--volumes"],
+        ["docker", "compose", "down", "--volumes"],
         check=True,
         env=ENV,
     )
